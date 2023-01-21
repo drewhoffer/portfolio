@@ -1,11 +1,11 @@
-import { Html, Head, Main, NextScript } from 'next/document'
+import { Html, Head, Main, NextScript } from "next/document";
 
 export default function Document() {
   const meta = {
-    title: 'Next.js Blog Starter Kit',
-    description: 'Clone and deploy your own Next.js portfolio in minutes.',
-    image: 'https://assets.vercel.com/image/upload/q_auto/front/vercel/dps.png',
-  }
+    title: "Drew's Zoo",
+    description:
+      "Personal playground for me to talk about things I care about. Whether it's new tech, old tech, cool tech, boring tech, I'll probably talk it about it eventually.",
+  };
 
   return (
     <Html lang="en">
@@ -15,17 +15,17 @@ export default function Document() {
         <meta property="og:site_name" content={meta.title} />
         <meta property="og:description" content={meta.description} />
         <meta property="og:title" content={meta.title} />
-        <meta property="og:image" content={meta.image} />
+        {/* <meta property="og:image" content={meta.image} /> */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@yourname" />
+        <meta name="twitter:site" content="@drewhoffer" />
         <meta name="twitter:title" content={meta.title} />
         <meta name="twitter:description" content={meta.description} />
-        <meta name="twitter:image" content={meta.image} />
+        {/* <meta name="twitter:image" content={meta.image} /> */}
       </Head>
       <body>
         <Main />
         <NextScript />
       </body>
     </Html>
-  )
+  );
 }

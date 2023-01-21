@@ -1,31 +1,39 @@
 ---
 type: page
-title: Photos
-date: 2021-03-18
+title: Projects 🏗️
+date: 2022-01-21
 ---
 
-# Photos
+# Projects
 
-Here's some of my photography.
+Here's some of the projects I am working on or have built.
 
-import Image from 'next/image'
+import Image from "next/image";
+
+## Ruby on Rails Real-Time Chess App
 
 <Image
-  src="/images/photo2.jpg"
-  alt="Photo"
-  width={1125}
-  height={750}
+  src="/images/chess.png"
+  alt="Chess Rails"
+  width={700}
+  height={100}
   priority
   className="next-image"
 />
-[Unsplash ↗ ](https://unsplash.com/photos/WeYamle9fDM)
 
-<Image
-  src="/images/photo.jpg"
-  alt="Photo"
-  width={1125}
-  height={750}
-  priority
-  className="next-image"
-/>
-[Unsplash ↗ ](https://unsplash.com/photos/ndN00KmbJ1c)
+## Description
+
+A real-time chess game that allows for user accounts (using devise), PGN (portable game notation), and FEN (Forsyth-Edwards Notation). This allows you to review an entire game on something like [Chess.com](https://chess.com) and analyze each play.
+
+This app was built to showcase how quick it is to put together a somewhat impressive concept in a very short amount of time (an afternoon).
+
+The app uses clientside Chess.Js to handle game logic. This has its flaws as you _could_ modify the outbound data to set your pieces to any position you want. Again, these things are preventable but outside the scope of what this project aimed to showcase.
+
+## Technologies used{" "}
+
+- [Ruby on Rails 💎](https://rubyonrails.org/)
+- [Devise 💂‍♂️](https://github.com/heartcombo/devise)
+- [ActionCable 💭](https://www.npmjs.com/package/actioncable)
+- [ChessJs ♟️](https://github.com/jhlywa/chess.js/)
+- [Bootstrap 🖌️](https://getbootstrap.com/)
+- [JQuery 🤖](https://jquery.com/)
