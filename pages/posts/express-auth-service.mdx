@@ -1,6 +1,6 @@
 ---
 title: Express JWT Auth
-date: 2023/01/21
+date: 2023/09/27
 description: Tutorial for building a ExpressJS microservice for authenticating users.
 tag: web development, nodejs, express, auth, mongodb, jwt, docker, passwordless
 author: Me
@@ -26,11 +26,10 @@ The app will:
 
 ## Prerequisites
 
-- Put list here
-- node version
-- docker
-- yarn or npm
-- sendgrid account
+- Node
+- Docker
+- Yarn or NPM
+- A SendGrid account
 
 ## Getting up and running
 
@@ -63,8 +62,26 @@ This will install Typescript for our packages as well as give us the tools to us
 Speaking of environment variables, we need to create a local file for holding those. I will call mine `.env.local` and put the following environment variables in it:
 
 ```
+# Database
 DB_URL=mongodb://root:example@localhost:27017/
 DB_NAME=express-auth-service-example
+
+# JWT secrets
+REFRESH_TOKEN_SECRET=RefreshTokenSecretThatShouldBeChanged
+ACCESS_TOKEN_SECRET=AccessTokenSecretThatShouldBeChanged
+MAGIC_LINK_TOKEN_SECRET=MagicTokenSecretThatShouldBeChanged
+
+# Redirect URLs
+CLIENT_URL=http://localhost:3001
+MAGIC_REDIRECT_URI=http://localhost:3000/v1/auth/magic
+
+# Sendgrid Keys
+SENDGRID_API_KEY=sg.something.somethingelse
+SENDGRID_FROM_EMAIL=your_from_email@email.com
+
+# CORS
+BASE_DOMAIN=localhost
+
 ```
 
 After creating a file for your environment variables, add the following script to your `./package.json`.
@@ -178,7 +195,7 @@ export const createServer = () => {
     .use(cookieParser())
     .use(
       cors({
-        origin: "*",
+        origin: [process.env.CLIENT_URL],
         allowedHeaders: ["Content-Type", "Authorization"],
         credentials: true,
       })
@@ -450,11 +467,11 @@ export default buildMakeUser({ Id, isEmail });
 export * from "./user";
 ```
 
-Another added bonus of using dependency injection is that since we have defined our interfaces for what things like `isEmail` should be (a method that takes a string and returns a boolean) we can actually change the library at any point down the line and as long as it adheres to our interface the business logic never changes! This is incredibly powerful for projects that going on over years. Finally, we have created our factory that returns users and are ready to move on to the next layer... Use cases!
+Another added bonus of using dependency injection is that since we have defined our interfaces for what things like `isEmail` should be (a method that takes a string and returns a boolean) we can actually change the library at any point down the line and as long as it adheres to our interface the business logic never changes! This is incredibly powerful for projects that carry on over years. Finally, we have created our factory that returns users and are ready to move on to the next layer... Use cases!
 
 ## Creating the "Generate Magic Link" Use Case
 
-P.S. For brevity, we will not be creating a **Create User** use case but feel free to do so if you'd like.
+P.S. For brevity, we will not be creating a **Create User** use case but feel free to do so if you'd like. You should have all the tools for this refactor by the end of this post.
 
 Okay, we have a user entity, now we want to actually create them. To do this we will create a `./src/usecases` directory and inside create a `./src/usecases/auth` directory. Inside this `./src/usecases/auth` directory, create a `generateMagicLink` directory and 2 files: `index.ts` and `generateMagicLink.ts`. Again, we do this to help organize our project but also to allow for a nice convention for dependency injection.
 
@@ -517,6 +534,8 @@ export function buildMakeGenerateMagicLink({
 Okay so again, we have a factory that returns a factory. In this case we have a factory that builds a factory that returns a generateMagicLink use case. Here is where we are starting to see a more involved example of dependency injection. The rest is simple, just put the logic that would normally be put in your express endpoint in the use case. But remember, application logic doesn't belong here. Business logic goes here such as how we create users, what emails we send when etc. (All of the logic that DOESN'T involve sending HTTP responses or formatting headers etc.).
 
 We start by injecting a database method (that hasn't been written yet) `findByEmail()`, as well as 2 mailer methods.
+
+As a side note, you should always validate inputs, for this post I will not be doing so but make sure that the data object coming is has been validated either by your controller or here through assertions and handle accordingly.
 
 Next lets create this dataAccess directory, then we will make the mailer.
 
@@ -638,6 +657,8 @@ export interface Mailer {
 }
 ```
 
+Then create `./src/mailers/signupUserMailer.ts`
+
 ```ts signupUserMailer.ts
 import { sendGridMailer } from "../integrations/sendgrid";
 
@@ -684,6 +705,14 @@ export function signupMagicLinkMailer({
 This signup mailer will send out an email using the generated verification token. The token will be set as a query parameter which will be parsed by our verify method later.
 To use this mailer we just take the returned object and call `.send()`
 
+Finally create `./src/integrations/sendgrid.ts` with the following to initialize sendgrid for our application.
+
+```ts
+import mailer from "@sendgrid/mail";
+mailer.setApiKey(process.env.SENDGRID_API_KEY);
+export const sendGridMailer = mailer;
+```
+
 ## Creating the Magiclink token
 
 Now we need to actually make that verification token that will be used by our signup mailer.
@@ -727,8 +756,7 @@ Let's break this down.
 ## Creating the Controller
 
 Okay, we have the use case and utility methods created. We have created an entity that conforms to our business logic. Now we need a place to put our application logic.
-Application logic is the logic that bridges the gap between our frontend consumer and our backend usecase. Using our code as an example, business logic is any logic that would be given to us as a requirement (such as how long tokens are valid, what should happen if a user email exists, etc.). Basically, any logic that defines the rules of our app. Application logic on the otherhand is how we take that information and send it around, in our case the HTTP responses, status codes, etc.
-`todo, does this above make sense????`
+Application logic is the logic that bridges the gap between our frontend consumer and our backend usecases. Using our code as an example, business logic is any logic that would be given to us as a requirement (such as how long tokens are valid, what should happen if a user email exists, etc.). Basically, any logic that defines the rules of our app. Application logic on the otherhand is how we take that information and send it around, in our case the HTTP responses, status codes, etc.
 
 ```ts controllers/auth/magic.ts
 import { HttpRequest, HttpResponse } from "../../../utils/http";
@@ -784,7 +812,7 @@ Now we have our first endpoint created! We can now successfully take input from 
 
 ## Doing it all again
 
-Now that you have an understanding of the process, I am only going to be explaining the why of the following code. We now have to create the verification endpoint.
+Now that you have an understanding of the process, I am only going to be explaining the why of the code moving forward. We now have to create the verification endpoint.
 
 ## Verifying the Magiclink
 
@@ -836,6 +864,9 @@ export function buildMakeVerifyMagicLink({
 As you can see, I have thrown generic errors here as I'm unoriginal but feel free to handle these as you would like (remember to inject the logger as a depdendency). To break this above code down we start by verifying the token (not written yet) to ensure that it has not been tampered with or changed or expired. Then we lookup the email that was inside the payload. Remember, we signed a token with the email being the only item in the payload, when we decode this token we also can get access to that email.
 We then lookup the user via email. If those two things go as planned then we can generate what is called an 'access token' and a 'refresh token'. This is where we get into the interesting bits so read on.
 
+Note that we never took a password for creating an account. The way that authentication works is with a public/private keypair. The public key would normally be an email/username or something but the private key is normally a passwod that only you know.
+Well we can entirely avoid requiring a password by simply sending an email that is shortlived to the user. By virtue of the user clicking our link they prove ownership of the email, thus the email link being clicked is the private key in this instance.
+
 ## Access Token / Refresh Token Flow
 
 So what are access tokens and refresh tokens?
@@ -850,7 +881,7 @@ Now I know what you're thinking 'If they can only access things for 5 minutes th
 Our refresh token will be much longer lived (in our case 7 days).
 
 The refresh token will be sent when the access token expires to get a new access token. In our code, we will have an endpoint for obtaining a new access token, whereas when a new refresh token is needed the user will need to login again.
-Below is the token logic which is located in `./src/utils/tokenUtils.ts`.
+Below is the token logic which is located in `./src/utils/tokenUtils.ts` (expanded on from our earlier token code).
 
 ```ts
 import { CookieOptions, Response } from "express";
@@ -1057,20 +1088,26 @@ Our `MagicLinkTokenPayload` outlines what fields will be in the JWT for the magi
 
 `AccessTokenPayload` contains the users unique identifier as well as email, you can put whatever you'd like in your JWT's but for 99% of my uses I will only need the users id, email, or maybe additional information such as a role. Remember since they are tamper proof we can send these fields to our frontend (React, etc.) and they will be able to see the values here.
 
-`RefreshTokenPayload` contains the user id, email, and this version field. The version field is a unique/random value we will assign to the refresh token to ensure that destructive actions are applied to all loggedin sessions. For example, when a user logs in to the application on their phone as well as their desktop, and they change the password, we will update the version. This allows us to perform actions that are normally very difficult (if not impossible) with a simple JWT implementation. When performing a function such as logging out everywhere, updating passwords, etc. we can simply modify the version value and now all related sessions will be logged out after their access tokens expire.
+`RefreshTokenPayload` contains the user id, email, and this version field.
+The version field is a unique/random value we will assign to the refresh token to ensure that destructive actions are applied to all loggedin sessions.
+For example, when a user logs in to the application on their phone as well as their desktop, and they change the password, we will update the version.
+This allows us to perform actions that are normally very difficult (if not impossible) with a simple JWT implementation. When performing a function such as logging out everywhere, updating passwords, etc.
+we can simply modify the version value and now all related sessions will be logged out after their access tokens expire.
 
 We then have our `exp` or expiration that is just a number which represents a point in time.
 
 After our interfaces we have our cookie options, we will be sending these JWT's as cookie headers to the clients. By sending them as [httponly cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#httponly) we prevent the issue of XSS, and by setting the sameSite attribute as 'strict' (in production) we prevent another common security concern of [CSRF](https://developer.mozilla.org/en-US/docs/Web/Security/Types_of_attacks#cross-site_request_forgery_csrf).
 We then set our cookie options and maxAges, there is no guarantee that the client will resepct these expirations but we set the as a best practice on our end.
 
+_It is important to note that since we have made the cookie httponly, the frontend consumer will not be able to access the values in the cookie. Instead, it will need to request the data for the user (for things such as avatar, role, etc. via an endpoint). A workaround to this would be to allow the `AccessToken` to be sent and stored in local storage. This would have security risks, however, since the token is only shortlived, it may be a viable option in your usecase._
+
 After that we have our functions that let us perform the signing/verification.
 
-`signAccessToken`/`signRefreshToken`/`signMagicLinkToken` all do the same thing with the except of setting the `expiresIn` property to a value based on our above enum.
+`signAccessToken`/`signRefreshToken`/`signMagicLinkToken` all do the same thing with the except of setting the `expiresIn` property to a value based on our `TokenExpiration` enum.
 
 Our verify methods will simply verify the tokens with our secret and ensure no tampering has happened.
 
-Finally, the `refreshTokens` method. This method will taken the current refresh token and first check to see if the versions match up, remember from earlier that if they don't then we revoke this token from the user. Otherwise, we will then create the new accesstoken, check to see if the refresh token is within a certain threshold and, if it is, send a new refresh token with a new 7 day expiration. This will allow the user to continue to remain logged in as long as they make a request within 7 days giving a very nice boost to UX.
+Finally, the `refreshTokens()` method. This method will taken the current refresh token and first check to see if the versions match up, remember from earlier that if they don't then we revoke this token from the user. Otherwise, we will then create the new access token, check to see if the refresh token is within a certain threshold for expiration and, if it is, send a new refresh token with a new 7 day expiration. This will allow the user to continue to remain logged in as long as they make a request within 7 days giving a very nice boost to UX.
 
 I know that there was a lot here but most of this was taken from a phenominal video by flolu that [I have linked here.](https://youtu.be/xMsJPnjiRAc?si=lIUb7OuTgbiJabJ8) please check it out.
 
@@ -1191,3 +1228,209 @@ router.post("/logout", authMiddleware, (_req, res) => {
 
 export default router;
 ```
+
+## Extra Frontend Axios implementation
+
+If you are wondering about a starting point for using this new api on your frontend, consider the following code.
+
+```ts
+import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
+
+export const getError = (error: any) => {
+  if (error.isAxiosError && error.response) {
+    return error.response.data.error.message;
+  }
+  return "Unexpected error";
+};
+
+export const makeAxiosApi = (baseUrl: string) => {
+  const api = axiosAdapter(baseUrl);
+
+  return {
+    get: api.get,
+    post: api.post,
+    patch: api.patch,
+    errorHandler: api.errorHandler,
+    deleteReq: api.deleteReq,
+  };
+};
+
+const axiosAdapter = (baseUrl: string) => {
+  const api: AxiosInstance = axios.create({
+    baseURL: baseUrl,
+    timeout: 30000,
+    withCredentials: true,
+  });
+
+  async function get(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse> {
+    return await api.get(url, config);
+  }
+
+  async function post(
+    url: string,
+    body?: unknown,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse> {
+    return await api.post(url, body, config);
+  }
+
+  async function patch(
+    url: string,
+    body?: unknown,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse> {
+    return await api.patch(url, body, config);
+  }
+  async function deleteReq(
+    url: string,
+    config?: AxiosRequestConfig
+  ): Promise<AxiosResponse> {
+    return await api.delete(url, config);
+  }
+
+  return {
+    get,
+    post,
+    patch,
+    deleteReq,
+  };
+};
+```
+
+The above code will create an axios instance for you that will simplify your code by providing a single instance to work with.
+
+Now we want to handle the case of access tokens expiring. This can be achieved with the following:
+
+```ts
+import { AxiosRequestConfig, AxiosResponse } from "axios";
+
+import { Http, QueryResponse } from "./interfaces";
+
+export type QueryResponse<T> = T;
+
+export interface Http {
+  get: <T>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ) => Promise<QueryResponse<T>>;
+  post: <T>(
+    url: string,
+    body?: any,
+    config?: AxiosRequestConfig,
+  ) => Promise<QueryResponse<T>>;
+  patch: <T>(
+    url: string,
+    body?: any,
+    config?: AxiosRequestConfig,
+  ) => Promise<QueryResponse<T>>;
+  deleteReq: <T>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ) => Promise<QueryResponse<T>>;
+}
+
+export interface HttpResponse {
+  data?: any;
+  status: number;
+}
+
+export interface HttpResponseError {
+  error: {
+    message?: string;
+  };
+  success: boolean;
+}
+
+export HttpResponse;
+
+
+export type HttpErrorHandler = (error: unknown) => void;
+
+export const makeHttp = (
+  httpLib: any,
+  errorHandler: HttpErrorHandler,
+): Http => {
+  return {
+    get,
+    post,
+    patch,
+    deleteReq,
+  };
+
+  async function refreshTokens() {
+    await httpLib.post("/auth/refresh");
+  }
+
+  // If we make a request and it returns a 401, try and refresh our tokens then try request again
+  // if the request still returns a 401, we throw that error
+  // if the request doesnt throw we got our data
+  // if the request does throw but it isnt a 401 we throw
+  async function handleRequest(
+    request: () => Promise<AxiosResponse>,
+  ): Promise<AxiosResponse> {
+    try {
+      return await request();
+    } catch (error: any) {
+      if (error?.response?.status === 401) {
+        try {
+          await refreshTokens();
+          return await request();
+        } catch (innerError: any) {
+          throw errorHandler(innerError);
+        }
+      }
+
+      throw errorHandler(error);
+    }
+  }
+
+  async function get<T>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<QueryResponse<T>> {
+    const request = () => httpLib.get(url, config);
+    return await (
+      await handleRequest(request)
+    ).data;
+  }
+  async function post<T>(
+    url: string,
+    body?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<QueryResponse<T>> {
+    const request = () => httpLib.post(url, body, config);
+    return await (
+      await handleRequest(request)
+    ).data;
+  }
+
+  async function patch<T>(
+    url: string,
+    body?: unknown,
+    config?: AxiosRequestConfig,
+  ): Promise<QueryResponse<T>> {
+    const request = () => httpLib.patch(url, body, config);
+    return await (
+      await handleRequest(request)
+    ).data;
+  }
+
+  async function deleteReq<T>(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<QueryResponse<T>> {
+    const request = () => httpLib.delete(url, config);
+    return await (
+      await handleRequest(request)
+    ).data;
+  }
+};
+```
+
+By using this new http lib we have done a few things: we have setup axios to create a reusable instance, we have abstracted axios out of our httplib (with exception of interfaces for brevity), we have created a interceptor that will handle the case of an expired access token.
+This let's our frontend seamlessly request a new access token without interupting the applications functionality.
+
+Beautiful! Happy coding.
