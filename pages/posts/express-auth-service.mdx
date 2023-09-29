@@ -21,7 +21,7 @@ The app will:
 - Authenticate users via magic email link (who needs passwords anyways)
 - Issue JWT's to users upon clicking their magic link email
 - Use the concept of "Access" and "Refresh" token's with an explanation of how they work
-- Implement CLEAN architecture so that the service is easily testable
+- Implement Clean architecture so that the service is easily testable
 - Docker for running our database
 
 ## Prerequisites
@@ -319,7 +319,7 @@ export function makeExpressCallback(
 }
 ```
 
-If you are new to this whole CLEAN concept this might seem strange that we are creating our own interface for http modules (express already has them defined anyways right???). Well the reason we do this is because it allows us to design our codebase around our rules. If we use the express interfaces for all of our controllers then if we ever decide to migrate from express we will inevitably have to change ALL of our controllers (oof).
+If you are new to this whole Clean concept this might seem strange that we are creating our own interface for http modules (express already has them defined anyways right???). Well the reason we do this is because it allows us to design our codebase around our rules. If we use the express interfaces for all of our controllers then if we ever decide to migrate from express we will inevitably have to change ALL of our controllers (oof).
 With our defined shape of request/response, we then create this expressCallback function. This will take one of our controllers as a callback. You'll notice it follows these steps:
 
 - Take incoming express request and pass it to our adapter.
@@ -368,7 +368,7 @@ Dependency injection is the idea that instead of using our imports directly (as 
 
 ## Building From The Inside Out
 
-Since we are implementing what is called CLEAN architecture we want to build our app from the 'inside out' meaning we start with our Model. If you are curious about what this looks like see the following image:
+Since we are implementing what is called Clean architecture we want to build our app from the 'inside out' meaning we start with our Model. If you are curious about what this looks like see the following image:
 
 <Image
   src="/images/clean.jpg"
@@ -379,7 +379,9 @@ Since we are implementing what is called CLEAN architecture we want to build our
   className="next-image"
 />
 
-*Source: [https://miro.medium.com/v2/resize:fit:772/1*B7LkQDyDqLN3rRSrNYkETA.jpeg](https://miro.medium.com/v2/resize:fit:772/1*B7LkQDyDqLN3rRSrNYkETA.jpeg)\*
+*Source: [Medium](https://miro.medium.com/v2/resize:fit:772/1*B7LkQDyDqLN3rRSrNYkETA.jpeg)\*
+
+_[I have attached a gist to a writeup explaining Clean Code further it](https://gist.github.com/wojteklu/73c6914cc446146b8b533c0988cf8d29)_
 
 As you can see, everything is based on **entities**. So let's make ours.
 
@@ -864,20 +866,20 @@ export function buildMakeVerifyMagicLink({
 As you can see, I have thrown generic errors here as I'm unoriginal but feel free to handle these as you would like (remember to inject the logger as a depdendency). To break this above code down we start by verifying the token (not written yet) to ensure that it has not been tampered with or changed or expired. Then we lookup the email that was inside the payload. Remember, we signed a token with the email being the only item in the payload, when we decode this token we also can get access to that email.
 We then lookup the user via email. If those two things go as planned then we can generate what is called an 'access token' and a 'refresh token'. This is where we get into the interesting bits so read on.
 
-Note that we never took a password for creating an account. The way that authentication works is with a public/private keypair. The public key would normally be an email/username or something but the private key is normally a passwod that only you know.
-Well we can entirely avoid requiring a password by simply sending an email that is shortlived to the user. By virtue of the user clicking our link they prove ownership of the email, thus the email link being clicked is the private key in this instance.
+_Note that we never took a password for creating an account. The way that authentication works is with a public/private keypair. The public key would normally be an email/username but the private key is normally a password that only you know.
+Well we can entirely avoid requiring a password by simply sending an email that is shortlived to the user. By virtue of the user clicking our link they prove ownership of the email, thus the email link being clicked is the private key in this instance._
 
 ## Access Token / Refresh Token Flow
 
 So what are access tokens and refresh tokens?
 
 Well, remember, since we aren't using sessions we cannot persist state in a database, instead we chose to go with JWT's.
-With JWT's we can prevent needing to lookup user's in the database everytime they make a request. JWT's are tamperproof meaning that if it is modified then we will know when we go to decode it. However, over my years of development I have seen a few instances of JWT's being used improperly.
+With JWT's we can prevent needing to lookup user's in the database everytime they make a request. JWT's are tamperproof meaning that if it is modified then we will know when we go to decode it. However, after a few years of development I have seen instances of JWT's being used improperly.
 
-It is important to set an expiration time for the token, this will prevent a malicious user from getting that token and being able to impersonate their victim forever. In our scheme we will be issuing 2 tokens, first the access token.
+It is important to set an expiration time for the token, this will prevent a malicious user from getting that token and being able to impersonate their victim forever. In our scheme we will be issuing 2 tokens: an access token and a refresh token, first the access token.
 
 The access token will be a short-lived token (5 minutes) that will be used exactly as the name suggests, to access things.
-Now I know what you're thinking 'If they can only access things for 5 minutes then what happens when it expires?', which is a valid question, this is where our refresh token comes in.
+Now I know what you're thinking _'If they can only access things for 5 minutes then what happens when it expires?'_, which is a valid question, this is where our refresh token comes in.
 Our refresh token will be much longer lived (in our case 7 days).
 
 The refresh token will be sent when the access token expires to get a new access token. In our code, we will have an endpoint for obtaining a new access token, whereas when a new refresh token is needed the user will need to login again.
@@ -1084,9 +1086,9 @@ I know that there is a lot but we will go through it thoroughly.
 
 Firstly, the interfaces.
 
-Our `MagicLinkTokenPayload` outlines what fields will be in the JWT for the magiclink token. This is the token/payload that is sent when requesting a magiclink to login with.
+Our `MagicLinkTokenPayload` has been covered earlier but outlines what fields will be in the JWT for the magiclink token. This is the token/payload that is sent when requesting a magiclink to login with.
 
-`AccessTokenPayload` contains the users unique identifier as well as email, you can put whatever you'd like in your JWT's but for 99% of my uses I will only need the users id, email, or maybe additional information such as a role. Remember since they are tamper proof we can send these fields to our frontend (React, etc.) and they will be able to see the values here.
+`AccessTokenPayload` contains the users unique identifier as well as email, you can put whatever you'd like in your JWT's but for 99% of my uses I will only need the users id, email, or maybe additional information such as a role. Remember since they are signed/tamper-proof we can send these fields to our frontend (React, etc.) and they will be able to read the values here.
 
 `RefreshTokenPayload` contains the user id, email, and this version field.
 The version field is a unique/random value we will assign to the refresh token to ensure that destructive actions are applied to all loggedin sessions.
@@ -1099,7 +1101,7 @@ We then have our `exp` or expiration that is just a number which represents a po
 After our interfaces we have our cookie options, we will be sending these JWT's as cookie headers to the clients. By sending them as [httponly cookies](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Set-Cookie#httponly) we prevent the issue of XSS, and by setting the sameSite attribute as 'strict' (in production) we prevent another common security concern of [CSRF](https://developer.mozilla.org/en-US/docs/Web/Security/Types_of_attacks#cross-site_request_forgery_csrf).
 We then set our cookie options and maxAges, there is no guarantee that the client will resepct these expirations but we set the as a best practice on our end.
 
-_It is important to note that since we have made the cookie httponly, the frontend consumer will not be able to access the values in the cookie. Instead, it will need to request the data for the user (for things such as avatar, role, etc. via an endpoint). A workaround to this would be to allow the `AccessToken` to be sent and stored in local storage. This would have security risks, however, since the token is only shortlived, it may be a viable option in your usecase._
+_It is important to note that since we have made the cookie httponly, the frontend consumer will not be able to access the values in the cookie. Instead, it will need to request the data for the user (for things such as avatar, role, etc. via an endpoint). A workaround to this would be to allow the `AccessToken` to be sent and stored in local storage (or another mechanism accessible via JavaScript). This would have security risks, however, since the token is only shortlived, it may be a viable option in your usecase._
 
 After that we have our functions that let us perform the signing/verification.
 
@@ -1113,10 +1115,11 @@ I know that there was a lot here but most of this was taken from a phenominal vi
 
 ## Wrap up
 
-To summarize, we have covered designing applications using the CLEAN design principle, learned the importance of DI and how it helps immensely in testing your application, the logic for passwordless authentication, as well as JWT's and how we can utilize them to give huge UX benefits without comprimising security.
+To summarize, we have covered designing applications using the Clean design principle, learned the importance of DI and how it helps immensely in testing your application, the logic for passwordless authentication, as well as JWT's and how we can utilize them to give huge UX benefits without comprimising security.
 
 The following code covers the controller, usecase, and linking to the router.
 
+First, the magiclink verification controller/usecase
 `./src/controllers/auth/magicLink.ts`
 
 ```ts
@@ -1125,33 +1128,6 @@ import { HttpRequest, HttpResponse } from "../../../utils/http";
 import makeHttpError from "../../../utils/http/makeError";
 import { Cookie, Cookies, MakeTokenParams } from "../../../utils/tokenUtils";
 
-export interface GenerateMagicLink {
-  email: string;
-}
-
-export interface MakePostMagicLink {
-  generateMagicLink: (data: GenerateMagicLink) => Promise<void>;
-}
-
-export function makePostMagicLink({ generateMagicLink }: MakePostMagicLink) {
-  return async function postMagicLink(req: HttpRequest): Promise<HttpResponse> {
-    const headers = {
-      "Content-Type": "application/json",
-    };
-    try {
-      await generateMagicLink(req.body);
-
-      return {
-        headers,
-        statusCode: 201,
-      };
-    } catch (error) {
-      return makeHttpError({ statusCode: 400, errorMessage: error.message });
-    }
-  };
-}
-
-// added to file for brevity but ./src/controllers/getMagicLink.ts would also be applicable here
 export interface VerifyMagicLink {
   token: string;
 }
@@ -1180,6 +1156,8 @@ export function makeGetMagicLink({
         token,
       });
 
+      // We have confirmed the magiclink, generated an access and refresh token
+      // now we set the tokens as headers and return to our expressAdapter to set as 'Set-Cookie' headers
       const access = setToken({
         payload: accessToken,
         tokenType: Cookies.AccessToken,
@@ -1203,6 +1181,121 @@ export function makeGetMagicLink({
 }
 ```
 
+Now, the refresh token controller/usecase.
+
+```ts
+import { User } from "../../models/user";
+import { RefreshToken } from "../../utils/tokenUtils";
+
+export interface MakeRefreshTokens {
+  token?: string;
+}
+
+export interface BuildMakeRefreshTokens {
+  verifyRefreshToken: (token: string) => RefreshToken;
+  findUserById: ({ id }: { id: string }) => Promise<User | null>;
+  refreshTokens: (
+    current: RefreshToken,
+    version: number
+  ) => { refreshToken?: string; accessToken: string };
+}
+export function BuildMakeRefreshTokens({
+  verifyRefreshToken,
+  findUserById,
+  refreshTokens,
+}: BuildMakeRefreshTokens) {
+  return async function makeRefreshTokens(data: MakeRefreshTokens) {
+    // Check for existence
+    if (!data.token) {
+      throw new Error("No authentication token.");
+    }
+    // Ensure it is a valid token (it has the correct version #)
+    const current = verifyRefreshToken(data.token);
+    // Find the decoded user from token
+    const user = await findUserById({ id: current.userId });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+    // Everything checks out, update the tokens
+    const { accessToken, refreshToken } = refreshTokens(current, user.version);
+    return {
+      accessToken,
+      refreshToken,
+    };
+  };
+}
+```
+
+Again, we just need to implement the logic that handles access/refresh tokens. This usecase will take the incoming tokens, and run our earlier defined `refreshTokens()` method.
+
+Linking it up to our controller
+
+```ts
+import { HttpRequest, HttpResponse } from "../../../utils/http";
+import makeHttpError from "../../../utils/http/makeError";
+import { Cookie, Cookies, MakeTokenParams } from "../../../utils/tokenUtils";
+
+export interface MakePostRefresh {
+  refreshTokens: (data: {
+    token: string;
+  }) => Promise<{ accessToken: string; refreshToken?: string }>;
+  setToken: ({ payload, tokenType }: MakeTokenParams) => Cookie;
+  clearToken: (tokenType: Cookies) => Cookie;
+}
+
+export function makePostRefresh({
+  refreshTokens,
+  setToken,
+  clearToken,
+}: MakePostRefresh) {
+  return async function postRefresh(req: HttpRequest): Promise<HttpResponse> {
+    const headers = {
+      "Content-Type": "application/json",
+    };
+    try {
+      //parse out the token from cookie header
+      const token = req.cookies[Cookies.RefreshToken];
+
+      // run refresh usecase
+      const { accessToken, refreshToken } = await refreshTokens({
+        token: token,
+      });
+
+      const tokens: Cookie[] = [];
+
+      const access = setToken({
+        payload: accessToken,
+        tokenType: Cookies.AccessToken,
+      });
+      tokens.push(access);
+
+      let refresh;
+      // if we are issuing a new refresh token (as per UC)
+      if (refreshToken) {
+        refresh = setToken({
+          payload: refreshToken,
+          tokenType: Cookies.RefreshToken,
+        });
+        tokens.push(refresh);
+      }
+
+      return {
+        headers,
+        cookies: tokens,
+        statusCode: 200,
+      };
+    } catch (error) {
+      clearToken(Cookies.AccessToken);
+      clearToken(Cookies.RefreshToken);
+      return makeHttpError({ statusCode: 400, errorMessage: error.message });
+    }
+  };
+}
+```
+
+And finally, linking these new endpoints up to our express router. The /logout endpoint was simple enough that a usecase would be unnecessary in my opinion.
+
 ```ts
 import { Router } from "express";
 import authController from "../../controllers/auth";
@@ -1216,8 +1309,6 @@ router.post("/magic", makeExpressCallback(authController.postMagic));
 
 router.get("/magic", makeExpressCallback(authController.getMagic));
 
-router.get("/google", makeExpressCallback(authController.getGoogle));
-
 router.post("/refresh", makeExpressCallback(authController.postRefresh));
 
 //locally logout (not worth breaking into callback)
@@ -1228,6 +1319,8 @@ router.post("/logout", authMiddleware, (_req, res) => {
 
 export default router;
 ```
+
+As a final fun task, try and setup a /logout all endpoint. The usecase would just need to modify the version property on the user document and therefore logout all instances on other devices.
 
 ## Extra Frontend Axios implementation
 
