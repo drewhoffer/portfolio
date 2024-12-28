@@ -1,0 +1,109 @@
+---
+title: Using the Authentication Generator With Rails 8
+date: 2024/12/28
+description: Quick update on the new Rails 8 authenticaiton generator.
+tag: web development, rails, rails 8, auth
+author: Me
+---
+# Rails 8.0.0 and the new auth generator
+
+With Rails 8's release we now have more tools to help us build our applications. One of them is the Rails 8 Authentication generator.
+With previous versions of rails we had tools like has_secure_password but if we wanted to go further we normally would use a gem like devise or authentication-zero.
+
+This weekened I decided to create a new rails app and see what this new generator could do.
+
+
+## Setting up a rails project and running the generator
+
+To use the generator just run the following command in a Rails 8 environment:
+
+```bash
+bin/rails generate authentication
+```
+
+This command generates key components such as: controllers, concerns for authentication, models for users and sessions, and migrations to set up the database schema. These building blocks make it easier to implement a fully functional authentication system straight out of the box (again without relying on other gems).
+
+The first place I would recommend checking out is the `app/controllers/concerns/authentication.rb`
+
+```ruby
+module Authentication
+  extend ActiveSupport::Concern
+ 
+ ...
+
+  class_methods do
+    def allow_unauthenticated_access(**options)
+      skip_before_action :require_authentication, **options
+    end
+  end
+
+  private
+    def authenticated?
+      resume_session
+    end
+
+    def require_authentication
+      resume_session || request_authentication
+    end
+
+    def resume_session
+      Current.session ||= find_session_by_cookie
+    end
+
+    def find_session_by_cookie
+      Session.find_by(id: cookies.signed[:session_id]) if cookies.signed[:session_id]
+    end
+
+    def request_authentication
+      session[:return_to_after_authenticating] = request.url
+      redirect_to new_session_path
+    end
+
+    def after_authentication_url
+      session.delete(:return_to_after_authenticating) || root_url
+    end
+
+    def start_new_session_for(user)
+      user.sessions.create!(user_agent: request.user_agent, ip_address: request.remote_ip).tap do |session|
+        Current.session = session
+        cookies.signed.permanent[:session_id] = { value: session.id, httponly: true, same_site: :lax }
+      end
+    end
+
+    def terminate_session
+      Current.session.destroy
+      cookies.delete(:session_id)
+    end
+end
+```
+
+If you have used authentication-zero some of this might look familiar, we have access to the Current model as well as some nice helper methods here like `allow_unathenticated_access`.
+
+I like how this covers some weird, sometimes hard to handle situations, for exmample the whole section on resuming a session after re-authing.
+```ruby
+def resume_session
+	Current.session ||= find_session_by_cookie
+end
+```
+Is great since these are topics I mostly forgot about and purged from my head a long time ago with people like Micheal Hartls rails guides which I did YEARS ago. Nonetheless, these small helpers are HUGE when you are trying to develop for UX.
+
+## Some other notes
+
+One thing that stands out is there is no sign_up controller. I am not sure the reasoning behind not including it, the biggest I would think is the different needs of signups (such as oauth providers etc.) and how that can balloon out into a huge codebase just on auth. Either way, it should be straight forward enough to setup your own. If you are new to authentication you could even lookup tools like [authentication zeros registration generator]("https://github.com/lazaronixon/authentication-zero/blob/main/lib/generators/authentication/templates/controllers/html/registrations_controller.rb.tt"). It will require some tweaks like using `allow_unauthenticated_access` but it really is quick to add.
+
+
+## Models generated 
+Running this will generate 2 migrations for you and create 3 models. Again, if you have used a tool like authentication-zero this should be straightforward but if you haven't heres a high level breakdown of what you just got:
+
+* User
+  * The user model is the most simple. It is.... a user. It has all of the fields you would expect. You can see these by taking a look at the `db/migrate/...create_users.rb` migration. One thing I will point out is if you are like me and hate storing users passwords in your application then you will probably want to remove the password_digest (if you want to use magic signup links instead).
+
+* Session
+  * The session is also straightforward enough it gives you user session info to maintain state through multiple requests. You can see the schema/migration here `db/migrate/...create_sessions.rb`.
+
+* Current
+  * This is a cool one. Current is the model used for the lifetime of a request. If you come from nodejs world and use express or something similar you might recognize this as something like `req.user` although this is more info than you would normally see there. This has all of the info such as user_agent, ip_address etc (more web request specific).
+
+## Thoughts
+
+I really like this as an introduction to rails and auth. One thing I have noticed now is a lot of developers struggle with this topic. I really think that this approach aligns with Rails' philosophy of convention over configuration, giving developers sensible defaults while still allowing for customization. By reducing dependency on third-party gems, Rails is ensuring developers have greater visibility into the inner workings of their codebase.
