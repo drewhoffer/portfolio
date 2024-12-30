@@ -8,7 +8,7 @@ author: Me
 
 # Adding Light/Dark Mode to Your Rails 8 App with Tailwind CSS
 
-Light and dark mode support has become a common feature in modern web applications. With Rails 8 and Tailwind CSS, you can quickly implement this functionality in your app. This guide will walk you through the steps to add a toggle for light and dark modes in your Rails 8 app.
+Light and dark mode support has become a common feature in modern web applications. With Rails and Tailwind CSS, you can quickly implement this functionality in your app. This guide will walk you through the steps to add a toggle for light and dark modes in your Rails app.
 
 ## An Aside
 
@@ -19,8 +19,6 @@ Finally, this isn't just limited to light/dark, my original implementation actua
 
 ## Prerequisites
 - **Rails**: Version 8.0.1
-- **Tailwind CSS**: Version 3.4.1 or greater
-
 ---
 
 ## Step 1: Create a New Rails App with Tailwind CSS
@@ -63,13 +61,13 @@ get "set_theme", to: "theme#update"
 ---
 
 ## Step 3: Configure Tailwind for Dark Mode
-Modify the `tailwind.config.js` file to enable dark mode using a custom selector:
+Modify the `tailwind.config.js` file to enable dark mode using a class:
 
 ```javascript
 const defaultTheme = require("tailwindcss/defaultTheme");
 
 module.exports = {
-  darkMode: "selector",
+  darkMode: "class",
   content: [
     "./public/*.html",
     "./app/helpers/**/*.rb",
@@ -89,7 +87,7 @@ module.exports = {
 };
 ```
 
-Setting `darkMode: "selector"` allows you to control the theme using a class on the root HTML element.
+Setting `darkMode: "class"` allows you to control the theme using a class on the root HTML element.
 
 ---
 
@@ -108,13 +106,15 @@ To toggle between light and dark modes, update your `app/views/layouts/applicati
   </head>
   <body class="bg-white dark:bg-black text-black dark:text-white">
     <main class="container mx-auto mt-28 px-5 flex">
-      <%= link_to 'Dark Mode', set_theme_path(theme: 'dark'), class: "mr-4" %>
-      <%= link_to 'Light Mode', set_theme_path(theme: 'light') %>
+      <%= link_to 'dark', set_theme_path(theme: 'dark'), data: { turbo: false } %>
+      <%= link_to 'light', set_theme_path(theme: 'light'), data: { turbo: false } %>
       <%= yield %>
     </main>
   </body>
 </html>
 ```
+
+Notice the `data: { turbo: false } %>`, this prevents turbo from optimizing the page update (which would result in the update not being applied until next hard page refresh).
 
 ### Key Points:
 1. The `class="<%= cookies[:theme] %>"` on the `<html>` element dynamically applies the selected theme.
