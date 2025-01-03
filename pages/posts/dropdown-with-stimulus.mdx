@@ -1,0 +1,305 @@
+---
+title: Creating a tailwind dropdown with StimulusJS and in Rails 8
+date: 2025/01/02
+description: Create a simple dropdown with some quick stimulus magic. 
+tag: web development, UI, Rails 8, Ruby on Rails, Stimulus, Tailwind, CSS
+author: Me
+---
+
+# Building a Dropdown with StimulusJS and Rails 8
+
+Continuing our exploration of StimulusJS and Rails 8, let's dive into creating a simpler yet essential component for any web application: the Dropdown. Dropdowns are versatile UI elements, used for navigation, settings, or quick actions. By leveraging StimulusJS and Tailwind CSS, we can build a reusable, dynamic dropdown with ease.
+
+## Setting Up the Rails 8 App
+
+To get started, we'll create a new Rails 8 application with Tailwind CSS for styling and ESBuild for JavaScript bundling.
+
+Run the following command to create the app:
+
+```sh
+rails new stimulus_dropdown --css tailwind --javascript esbuild
+```
+
+This command initializes a Rails 8 app with Tailwind CSS preconfigured for styling and ESBuild for handling JavaScript. With these tools in place, we're ready to dive into building the dropdown component.
+
+## Setting Up the Playground
+
+Before we dive into creating the dropdown, let's set up a root route to showcase it in our application. This will serve as our playground for building and testing the dropdown.
+
+Run the following command to generate a `HomeController` with an index action:
+
+```sh
+rails g controller home index
+```
+
+Next, update the `config/routes.rb` file to set the root route to home#index:
+
+```ruby
+Rails.application.routes.draw do
+  root "home#index"
+end
+```
+
+Start your Rails server with:
+
+```sh
+./bin/dev
+```
+
+Visit `http://localhost:3000` in your browser, and you should see the default "Hello, world!" message on the home page. This confirms that our playground is ready to go.
+
+## Creating the Stimulus Controller
+
+With our app and playground set up, the next step is to create a Stimulus controller.
+
+Run the following command to generate the controller:
+
+```sh
+rails g stimulus dropdown
+```
+
+This creates the necessary files and scaffolding for the dropdown_controller. We'll use this controller to manage the behavior of our dropdown.
+
+## Designing the Dropdown
+Before we get into the functionality, let's start with the design. For this example, we're using a dropdown taken from TailwindUI. I'm using the first free one located [here](https://tailwindui.com/components/application-ui/elements/dropdowns#component-f8a14da22f26a67757b19f2fe3ca00ed).
+
+Copy the HTML from TailwindUI and paste it into `app/views/home/index.html.erb`:
+
+```html
+<h1>Home#index</h1>
+<p>Find me in app/views/home/index.html.erb</p>
+<div class="relative inline-block text-left">
+  <div>
+    <button type="button" class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" id="menu-button" aria-expanded="true" aria-haspopup="true">
+      Options
+      <svg class="-mr-1 size-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+        <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+      </svg>
+    </button>
+  </div>
+  <!--
+    Dropdown menu, show/hide based on menu state.
+
+    Entering: "transition ease-out duration-100"
+      From: "transform opacity-0 scale-95"
+      To: "transform opacity-100 scale-100"
+    Leaving: "transition ease-in duration-75"
+      From: "transform opacity-100 scale-100"
+      To: "transform opacity-0 scale-95"
+  -->
+  <div class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1">
+    <div class="py-1" role="none">
+      <!-- Active: "bg-gray-100 text-gray-900 outline-none", Not Active: "text-gray-700" -->
+      <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-0">Account settings</a>
+      <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-1">Support</a>
+      <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-2">License</a>
+    </div>
+  </div>
+</div>
+```
+
+You should see the dropdown now, opened, and with no functionality.
+
+
+## Linking the Dropdown to the Stimulus Controller
+
+Now that we have our dropdown, let's link it to our Stimulus dropdown controller. Stimulus allows us to manage interactions cleanly and efficiently by attaching behavior to HTML elements using `data` attributes, you can read more about it [here](https://stimulus.hotwired.dev/).
+
+To do this, we add the attribute `data-controller="dropdown"` to the wrapping `<div>` of our dropdown. Update your `app/views/home/index.html.erb` file as follows:
+
+```html
+<h1>Home#index</h1>
+<p>Find me in app/views/home/index.html.erb</p>
+<!-- Notice the data-controller attribute here -->
+<div data-controller="dropdown" class="relative inline-block text-left">
+  <div>
+    <button type="button" class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" id="menu-button" aria-expanded="true" aria-haspopup="true">
+      Options
+      <svg class="-mr-1 size-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+        <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+      </svg>
+    </button>
+    <!--
+      Dropdown menu, show/hide based on menu state.
+
+      Entering: "transition ease-out duration-100"
+        From: "transform opacity-0 scale-95"
+        To: "transform opacity-100 scale-100"
+      Leaving: "transition ease-in duration-75"
+        From: "transform opacity-100 scale-100"
+        To: "transform opacity-0 scale-95"
+    -->
+    <div class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1">
+      <div class="py-1" role="none">
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-0">Account settings</a>
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-1">Support</a>
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-2">License</a>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+By adding `data-controller="dropdown"`, we've connected the Stimulus controller to the dropdown. This setup allows us to manage dropdown functionality (e.g., toggling visibility) within the controller logic.
+
+
+## Verifying the Stimulus Controller Connection
+
+To ensure that our dropdown Stimulus controller is properly linked, we'll add a simple `console.log` statement to the controller's connect method. This method runs automatically when the controller is initialized.
+
+Update your `dropdown_controller.js` file as follows:
+
+```javascript
+import { Controller } from "@hotwired/stimulus";
+
+// Connects to data-controller="dropdown"
+export default class extends Controller {
+  connect() {
+    console.log("Hello Dropdown!");
+  }
+}
+```
+
+Once you've added this, save all your files and refresh your browser. Open the browser's console and look for the message:
+
+```
+Hello Dropdown!
+```
+
+If you see this message, your Stimulus controller is successfully connected to the dropdown component.
+
+
+## Hiding the Dropdown Initially
+
+To ensure the dropdown menu is hidden when the page loads, we'll add the `hidden` class from Tailwind CSS to the dropdown portion. This class will prevent the menu from being displayed until we explicitly toggle it using our Stimulus controller.
+
+Update the last `<div>` (the absolutely positioned dropdown menu) in your `app/views/home/index.html.erb` file as follows:
+
+```html
+<div data-controller="dropdown" class="relative inline-block text-left">
+  <div >
+    <button type="button" class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" id="menu-button" aria-expanded="true" aria-haspopup="true">
+      Options
+      <svg class="-mr-1 size-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+        <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+      </svg>
+    </button>
+    <!-- Add hidden here -->
+    <div class="hidden absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1">
+      <div class="py-1" role="none">
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-0">Account settings</a>
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-1">Support</a>
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-2">License</a>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+With the `hidden` class added, the dropdown menu will not be visible by default. We'll use the Stimulus controller to toggle this class dynamically, enabling and disabling the dropdown as needed.
+
+Next, we'll add the logic to toggle the dropdown menu in the Stimulus controller.
+
+
+## Adding Toggle Functionality
+
+To make the dropdown interactive, we need to handle two elements:
+
+The button that toggles the dropdown.
+The content that shows or hides based on the button's action.
+We'll start by updating the button to call an `onToggle` function when clicked. This is done by adding a `data-action` attribute to the button. Update your button element as follows:
+
+```html
+<!-- The opener button gets this data-action attribute -->
+<button data-action="click->dropdown#onToggle" type="button" class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50" id="menu-button" aria-expanded="true" aria-haspopup="true">
+  Options
+  <svg class="-mr-1 size-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" data-slot="icon">
+    <path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd" />
+  </svg>
+</button>
+```
+
+The `data-action="click->dropdown#onToggle"` attribute tells Stimulus to call the `onToggle` method from the `dropdown` controller when the button is clicked.
+
+In the next step, we'll implement the `onToggle` method in the `dropdown_controller.js` file to handle the dropdown's visibility.
+
+
+## Implementing the onToggle Method
+
+Now that we've set up the button to trigger the onToggle method, we need to define that method in the `dropdown_controller.js` file. This method will handle toggling the visibility of the dropdown menu.
+
+Update your `dropdown_controller.js` file as follows:
+
+```javascript
+import { Controller } from "@hotwired/stimulus";
+
+// Connects to data-controller="dropdown"
+export default class extends Controller {
+  connect() {
+    console.log("Hello Dropdown!");
+  }
+
+  onToggle() {
+    console.log("Toggle Dropdown!");
+  }
+}
+```
+
+
+If everything is set up correctly, you should see the message `Toggle Dropdown!` appear in the console every time you click the button.
+
+
+
+## Targeting the Dropdown Content
+
+To toggle the visibility of the dropdown, we need to target the dropdown content in the Stimulus controller. We can do this by adding a `data-dropdown-target` attribute to the dropdown content div. This will allow us to reference it in the controller.
+
+Update the dropdown content div to include the `data-dropdown-target="dropdownContents"` attribute:
+
+```html
+<!-- the div we hid earlier now gets set as a target for our dropdown controller -->
+<div data-dropdown-target="dropdownContents" class="hidden absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white shadow-lg ring-1 ring-black/5 focus:outline-none" role="menu" aria-orientation="vertical" aria-labelledby="menu-button" tabindex="-1">
+  <div class="py-1" role="none">
+    <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-0">Account settings</a>
+    <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-1">Support</a>
+    <a href="#" class="block px-4 py-2 text-sm text-gray-700" role="menuitem" tabindex="-1" id="menu-item-2">License</a>
+  </div>
+</div>
+```
+
+Update the Stimulus controller to include the `static targets` property. This will allow us to reference the dropdown content using the dropdownContents target:
+```js
+import { Controller } from "@hotwired/stimulus";
+
+// Connects to data-controller="dropdown"
+export default class extends Controller {
+  static targets = ["dropdownContents"]; // Define the target
+
+  connect() {
+    console.log("Hello Dropdown!");
+  }
+
+  onToggle() {
+    console.log("Toggle Dropdown!");
+
+    // Toggle the visibility of the dropdown
+    this.dropdownContentsTarget.classList.toggle("hidden");
+  }
+}
+```
+
+## What This Does
+
+* **Targeting the Dropdown**: By adding `data-dropdown-target="dropdownContents"`, we can now reference this element in the Stimulus controller.
+
+* **Toggling Visibility**: In the onToggle method, we use `this.dropdownContentsTarget.classList.toggle("hidden")` to toggle the `hidden` class, showing or hiding the dropdown menu when the button is clicked.
+With this setup, clicking the button will toggle the dropdown visibility, and you should see the dropdown appear and disappear based on the button click.
+
+
+## Next Steps
+
+Awesome and just like that we have a working simple dropdown. There are a few extracurricular challenges I will give you. 
+
+1. Right now the only way to close the dropdown is by clicking the button again, how could we keep the dropdown open unless an item inside or the background is clicked? hint: use a content anchor target.
+2. Using my earlier post about the slideover, can you add `el-transition` to this dropdown based on the given tailwind comments to animate this?
+3. Can you close the dropdown with a keystroke instead perhaps? Maybe close it when you hit the `esc` key?
