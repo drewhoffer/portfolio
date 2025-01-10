@@ -21,7 +21,6 @@ export default function Document() {
         <meta name="twitter:title" content={meta.title} />
         <meta name="twitter:description" content={meta.description} />
         {/* <meta name="twitter:image" content={meta.image} /> */}
-        <script defer data-domain="drewszoo.ca" src="https://plausible.drewszoo.ca/js/script.js"></script>
       </Head>
       <body>
         <Main />
