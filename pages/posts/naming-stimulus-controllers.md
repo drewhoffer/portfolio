@@ -7,31 +7,31 @@ author: Me
 ---
 
 
-# Background
+## Background
 
 I have been doing a bunch of work lately in Rails (as you can see based on my posts). One thing I really have wanted to get away from is React. I do it all day at work, I've been doing it for close to a decade now and honestly, it just isn't that much fun anymore. Furthermore, part of web development is being able to keep up with all 9million new updates every week. Rails has been great to work in, it's been fast and I've never felt more productive.
 
 Unfortunately, that mean's learning a completely new "framework". I say "framework" because compared to React, Stimulus is literally nothing to learn. GREAT! But it still comes with patterns/practices and gotchas.
 
 
-# Problem
+## Problem
 
 I have a form, the form needs to have these nice cards, the nice cards use a snippet from [TailwindUI](https://tailwindcss.com/plus/ui-blocks/application-ui/forms/radio-groups#component-45612766894822db447a2837d79355f5). Great, how the hell do I do that...
 
 Well, normally in React I would just make a component inside my form (In this case it's my After signup page), and simply put the logic in and boom you're done.
 
-In Stimulus, that doesn't really feel right. What do I call the controller? See I'm a big design guy to a fault. At times this means that I spend an entire afternoon spinning tires and NOT getting good work done. At the end of the day I COULD just make a 1 off Stimulus controller and call it but it always felt out of place to bog down my app with thousands of 1 off controllers (I mean what the hell is an `after-signup-radio-group-controller.js` anyway?).
+In Stimulus, that doesn't really feel right. What do I call the controller? See I'm a big design guy to a fault. At times this means that I spend an entire afternoon spinning tires and **NOT** getting good work done. At the end of the day I COULD just make a 1 off Stimulus controller and call it but it always felt out of place to bog down my app with thousands of 1 off controllers (I mean what the hell is an `after-signup-radio-group-controller.js` anyway?).
 
-# Solution
+## Solution
 
 I am a little embarassed to say that I didn't catch this earlier. Enter.... *Identifiers*. [Identifiers](https://stimulus.hotwired.dev/reference/controllers#identifiers) are just how you identify controllers... great. But something caught my eye when trying to (for the hundreth time) decide how to *design* this controller.
 
 Look at the third option: `users/list_item_controller.js   users--list-item`. Wait a minute, you're saying if I want to make a 1 off component I could just namespace it to a specific domain??? Why the hell haven't I been doing this.
 
 
-# Takeaway
+## Takeaway
 
-Do NOT do what I do and sit for hours trying to figure out the perfect implementation of a beautiful controller (you won't find it until the abstractions show itself anyways). Do what is best and make your tightly coupled, filled with bloat controller first. Get the feature done, then, when you need, and more importantly, when it's valuable to do so, decide what to take away and put into a higher-level abstraction.
+Do **NOT** do what I do and sit for hours trying to figure out the perfect implementation of a beautiful controller (you won't find it until the abstractions show itself anyways). Do what is best and make your tightly coupled, filled with bloat controller first. Get the feature done, then, when you need, and more importantly, when it's valuable to do so, decide what to take away and put into a higher-level abstraction.
 
 
 ## My implementation 
@@ -109,7 +109,6 @@ export default class extends Controller {
       const label = this.findLabelForRadio(radio)
       this.removeSelectedStyles(label)
     })
-    // Apply styles to the selected one
     this.applySelectedStyles(event.target)
   }
 
@@ -122,7 +121,7 @@ export default class extends Controller {
     label.classList.remove("border-gray-300", "border-2")
     label.classList.add("border-blue-600", "ring-2", "ring-blue-600", "border")
     
-    // find and show the checckmark
+    //find and show the checckmark
     const icon = label.querySelector("svg")
     if (icon) icon.classList.remove("invisible")
   }
