@@ -1,5 +1,5 @@
 ---
-title: My First Post
+title: 24 Hour Startup challenge
 date: 2025/06/05
 description: What can I code in 24-hours.
 tag: web development, personal, start-ups
